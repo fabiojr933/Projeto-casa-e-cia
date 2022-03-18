@@ -10,6 +10,7 @@ const fs = require('fs');
 const axios = require('axios');
 const logger = require('../logger/logger');
 const { exit } = require('process');
+var exec = require('child_process').exec;
 
 
 
@@ -57,7 +58,7 @@ router.post('/whatsapp/getMessage', online, (req, res) => {
           'sessionkey': session
         },
         data: JSON.stringify(data)
-      };      
+      };
       axios(config).then(function (response) {
         if (response.data.result != 200) {
           erro = 'Não foi possivel enviar as mensagem, servidor não esta respondendo \n chame o suporte tecnico para mais detalhe';
@@ -865,7 +866,7 @@ router.post('/whatsapp/charge/import', adminAuth, upload.single('arquivo'), asyn
           codigo_cobranca = parseInt(codigo_cobranca + 1);
         }
         console.log(codigo_cobranca);
-        fs.readFile(arquivos.path, 'utf8', function (err, data) {         
+        fs.readFile(arquivos.path, 'utf8', function (err, data) {
           if (err) {
             console.log(err);
             return;
@@ -873,14 +874,14 @@ router.post('/whatsapp/charge/import', adminAuth, upload.single('arquivo'), asyn
             var a = data.split('\r\n');
             a.shift();
             a.pop();
-           
+
             a.forEach(row => {
               var arr = row.split(';');
               rows.push(arr);
             });
           }
           setTimeout(function () {
-           
+
           }, 4000);
           console.log(rows);
           rows.forEach(dados => {
@@ -1101,4 +1102,45 @@ router.post('/whatsapp/send/contact2', adminAuth, online, upload.array('imagem')
     res.redirect('/');
   }
 });
+
+router.get('/whatsapp/reiniciar', adminAuth, online, async (req, res) => {
+  try {
+    var erro = req.flash('erro');
+    var sucesso = req.flash('sucesso');
+    erro = erro == undefined || erro.length == 0 ? undefined : erro;
+    sucesso = sucesso == undefined || sucesso.length == 0 || sucesso == '' ? undefined : sucesso;
+    var dias_falta = req.session.user.dias_falta
+    var cnpj = req.session.user.cnpj;
+    res.render('whatsapp/reiniciar', { erro: erro, sucesso: sucesso, dias_falta: dias_falta });
+  } catch (error) {
+    var erro = 'Ocorreu algum erro tempo de execução';
+    req.flash('erro', erro);
+    logger.error(error);
+    res.redirect('/');
+  }
+});
+router.get('/whatsapp/reboot', adminAuth, online, (req, res) => {
+  try {
+    exec('reboot', (err, stdout, stderr) => {
+      //sudo /sbin/shutdown -r now
+      if (err) {
+        var erro = 'Ocorreu algum erro tempo de execução';
+        req.flash('erro', erro);
+        logger.error(err);
+        res.redirect('/');
+      } else {
+        console.log('reiniciando')
+        res.status(200).send(stdout);
+        logger.info(stdout);
+      }
+    })
+  } catch (error) {
+    console.log(error)
+    var erro = 'Ocorreu algum erro tempo de execução';
+    req.flash('erro', erro);
+   // logger.error(error);
+    res.redirect('/');
+  }
+});
+
 module.exports = router;
